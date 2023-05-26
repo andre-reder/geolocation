@@ -64,7 +64,12 @@ export default function DisplayMap({ data, selectedWorkplace, selectedEmployee }
 		const ui = H.ui.UI.createDefault(mapInstance, defaultLayers);
 
 		function addMarkersToMap(map: any) {
-			const ltIcon = new H.map.Icon(company);
+			const ltIcon = new H.map.Icon(company, {
+				size: {
+					h: 32,
+					w: 32
+				}
+			});
 			const ltMarker = new H.map.Marker(ltCoords, { icon: ltIcon });
 			function addMarkerToGroup(group: any, coordinate: CoordType, html: string) {
 				const marker = new H.map.Marker(coordinate, { icon: ltIcon });
@@ -108,7 +113,12 @@ export default function DisplayMap({ data, selectedWorkplace, selectedEmployee }
 			employees.forEach((employee) => {
 				const optimizedEmployeeIcon = new H.map.Icon(greenEmployeeIcon);
 				const notOptimizedEmployeeIcon = new H.map.Icon(employeeIcon);
-				const selectedEmployeeIcon = new H.map.Icon(blueEmployeeIcon);
+				const selectedEmployeeIcon = new H.map.Icon(blueEmployeeIcon, {
+					size: {
+						h: 32,
+						w: 32
+					}
+				});
 				const employeeCoord = { lat: employee.lat, lng: employee.lng };
 
 				const choosedIcon = (

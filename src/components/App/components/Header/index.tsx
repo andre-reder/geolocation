@@ -1,5 +1,5 @@
 import React, { ChangeEvent, RefObject, useRef } from 'react';
-import { ButtonsContainer, Container, LogoContainer } from './styles';
+import { ButtonsContainer, Container, LogoContainer, Title } from './styles';
 
 import logo from '../../../../assets/images/logo.svg';
 import { SecondaryButton } from '../../../SecondaryButton';
@@ -23,8 +23,8 @@ export default function Header({
 		<Container>
 			<LogoContainer>
 				<img src={logo} alt="Logo" />
-				<div>Mapa de tendência</div>
 			</LogoContainer>
+			<Title>Mapa de tendência</Title>
 			<ButtonsContainer>
 				<SecondaryButton onClick={downloadCsvModel}>
           Modelo CSV

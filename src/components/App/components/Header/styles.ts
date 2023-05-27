@@ -40,5 +40,5 @@ export const Title = styled.div`
   font-size: 20px;
   font-weight: bold;
   color: ${({ theme }) => theme.colors.primary.main};
-  padding-left: 124px;
+  padding-left: 115px;
 `;

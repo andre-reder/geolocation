@@ -1,12 +1,17 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { ChangeEvent, useState } from 'react';
 import Papa from 'papaparse';
-import hasDesiredKeysAndValues, { AnyObject } from '../../utils/hasDesiredKeysAndValues';
+import hasDesiredKeysAndValues from '../../utils/hasDesiredKeysAndValues';
 import { toast } from 'react-toastify';
 import isValidCoordFromCsv from '../../utils/isValidCoordFromCsv';
 import { DataFromCsvMappedType, WorkplaceType } from './types';
 import hasDuplicates from '../../utils/hasDuplicatedValueAtArray';
 import removeDuplicates from '../../utils/removeDuplicates';
 import extractNumbers from '../../utils/extractNumbers';
+
+interface CustomParseResult<T> extends Papa.ParseResult<T> {
+  data: T[];
+}
 
 export default function useApp() {
 	const [dataFromCsv, setDataFromCsv] = useState<DataFromCsvMappedType[]>([]);
@@ -26,6 +31,8 @@ export default function useApp() {
 		value: '', label: 'Selecione um funcionário'
 	}]);
 
+	const desiredHeaders = ['CEP_FUNC', 'CEP_LOCAL', 'COD_CONSULTA', 'COD_LOCAL', 'CPF', 'DESCR_LOCAL', 'HR_ENT', 'HR_SAI', 'LAT_FUNC', 'LAT_LOCAL', 'LOGRADOURO_FUNC', 'LOGRADOURO_LOCAL', 'LONG_FUNC', 'LONG_LOCAL', 'NOME', 'NUM_FUNC', 'NUM_LOCAL', 'VT_INFORMADO', 'VT_ROT'];
+
 	function handleSelectedWorkplaceChange(workplace: WorkplaceType) {
 		setSelectedWorkplace(workplace);
 		setSelectedEmployee({ value: '', label: 'Selecione um funcionário' });
@@ -40,12 +47,10 @@ export default function useApp() {
 		));
 		setEmployeesOptions(mappedEmployeesOptions);
 		setFilteredData(employeesAtWorkplace);
-		console.log({ mappedEmployeesOptions, employeesAtWorkplace });
 	}
 
 	function handleSelectedEmployeeChange(employee: { value: string, label: string }) {
 		setSelectedEmployee(employee);
-		console.log({ employee });
 	}
 
 	function downloadCsvModel() {
@@ -57,42 +62,39 @@ export default function useApp() {
 		document.body.removeChild(link);
 	}
 
-	function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
-		const { files } = e.target;
-		if (files) {
-			Papa.parse(files[0], {
-				header: true,
-				complete: (results) => {
-					const resultArray: AnyObject[] = results.data as AnyObject[];
+	function parseFile(file: File):Promise<CustomParseResult<any>> {
+		return new Promise((resolve, reject) => {
+			const parsedData: any[] = [];
 
-					const desiredHeaders = ['CEP_FUNC', 'CEP_LOCAL', 'COD_CONSULTA', 'COD_LOCAL', 'CPF', 'DESCR_LOCAL', 'HR_ENT', 'HR_SAI', 'LAT_FUNC', 'LAT_LOCAL', 'LOGRADOURO_FUNC', 'LOGRADOURO_LOCAL', 'LONG_FUNC', 'LONG_LOCAL', 'NOME', 'NUM_FUNC', 'NUM_LOCAL', 'VT_INFORMADO', 'VT_ROT'];
-					const hasDesiredHeadersAndValues = hasDesiredKeysAndValues(resultArray, desiredHeaders);
-					const allCoords: string[] = [];
-					resultArray.forEach(obj => {
+			Papa.parse(file, {
+				header: true,
+				chunkSize: 5000,
+				chunk: (results, parser) => {
+					const data: Array<any> = results.data;
+
+					const hasDesiredHeadersAndValues = hasDesiredKeysAndValues(data, desiredHeaders);
+					if (!hasDesiredHeadersAndValues) {
+						reject(new Error('Identificamos que o arquivo enviado não está com os mesmos cabeçalhos do modelo a ser seguido, ou algum campo foi preenchdio em branco'));
+						parser.abort();
+						return;
+					}
+
+					const allCoords = [];
+					for (let i = 0; i < data.length; i++) {
+						const obj = data[i];
 						allCoords.push(obj['LAT_FUNC']);
 						allCoords.push(obj['LONG_FUNC']);
 						allCoords.push(obj['LAT_LOCAL']);
 						allCoords.push(obj['LONG_LOCAL']);
-					});
+					}
 					const areAllCoordsValid = allCoords.every((coord) => isValidCoordFromCsv(coord));
-					const onlyCpfs = resultArray.map((index) => index.CPF);
-					console.log({ onlyCpfs});
-
-					if (!hasDesiredHeadersAndValues) {
-						toast.error('Identificamos que o arquivo enviado não está com os mesmos cabeçalhos do modelo a ser seguido, ou algum campo foi preenchdio em branco');
-						return;
-					}
 					if (!areAllCoordsValid) {
-						toast.error('Identificamos que existe alguma coordenada em um formato diferente do modelo');
-						return;
-					}
-					if (hasDuplicates(onlyCpfs)) {
-						toast.error('Identificamos uma ou mais duplicidades de CPF no arquivo');
+						reject(new Error('Identificamos que existe alguma coordenada em um formato diferente do modelo'));
+						parser.abort();
 						return;
 					}
 
-					const filteredArray = resultArray.filter((index) => !!index.CPF);
-					const mappedArray = filteredArray.map((index) => ({
+					const mappedArray = data.map((index) => ({
 						cpf: index.CPF,
 						consultCode: index.COD_CONSULTA,
 						name: index.NOME,
@@ -113,27 +115,66 @@ export default function useApp() {
 						workplaceLat: index.LAT_LOCAL.replaceAll('_', '.'),
 						workplaceLng: index.LONG_LOCAL.replaceAll('_', '.'),
 					}));
-					const mappedWorkplaces = mappedArray.map((index) => (
-						{
-							value: index.workplaceCode,
-							label: index.workplaceName,
-							lat: index.workplaceLat,
-							lng: index.workplaceLng,
-							cep: index.workplaceCep,
-							streetName: index.workplaceStreetName,
-							number: index.workplaceNumber,
-						}
-					));
-					setWorkplacesOptions(removeDuplicates(mappedWorkplaces));
-					setDataFromCsv(mappedArray);
-					console.log({ mappedArray});
-					toast.success('Arquivo processado com sucesso!');
+					parsedData.push(...mappedArray);
 				},
-				error(error, file) {
-					toast.error(`Não foi possível processar este arquivo (${error})`);
-					console.log(file);
+				complete: () => {
+					const onlyCpfs = [];
+					for (let i = 0; i < parsedData.length; i++) {
+						const index = parsedData[i];
+						onlyCpfs.push(index.cpf);
+					}
+					if (hasDuplicates(onlyCpfs)) {
+						reject(new Error('Identificamos uma ou mais duplicidades de CPF no arquivo') );
+						return;
+					}
+					const customResult: CustomParseResult<any> = {
+						data: parsedData,
+						errors: [],
+						meta: {
+							delimiter: '',
+							linebreak: '',
+							aborted: false,
+							truncated: false,
+							cursor: 0,
+						},
+					};
+					resolve(customResult);
 				},
+				error: reject,
 			});
+		});
+	}
+
+	async function handleFileUpload(e: ChangeEvent<HTMLInputElement>) {
+		const { files } = e.target;
+		if (files) {
+			try {
+				const results = await toast.promise(parseFile(files[0]), {
+					pending: 'Aguarde, estamos carregando este arquivo',
+					success: 'Seu arquivo está válido. Agora basta visualizar seu mapa da forma que desejar!',
+					error: 'Ocorreu um erro ao carregar seu arquivo',
+				});
+				const resultArray: DataFromCsvMappedType[] = results.data;
+
+				const mappedWorkplaces = [];
+				for (let i = 0; i < resultArray.length; i++) {
+					const index = resultArray[i];
+					mappedWorkplaces.push({
+						value: index.workplaceCode,
+						label: index.workplaceName,
+						lat: index.workplaceLat,
+						lng: index.workplaceLng,
+						cep: index.workplaceCep,
+						streetName: index.workplaceStreetName,
+						number: index.workplaceNumber,
+					});
+				}
+				setWorkplacesOptions(removeDuplicates(mappedWorkplaces));
+				setDataFromCsv(resultArray);
+			} catch (error) {
+				toast.error(`Não foi possível processar este arquivo (${error})`);
+				setDataFromCsv([]);
+			}
 		}
 	}
 

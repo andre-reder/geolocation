@@ -29,3 +29,25 @@ export type WorkplaceType = {
   streetName: string,
   number: string,
 }
+
+export type DataFromCsvType = {
+  CPF: string,
+  COD_CONSULTA: string,
+  NOME: string,
+  LOGRADOURO_FUNC: string,
+  NUM_FUNC: string,
+  CEP_FUNC: string,
+  LAT_FUNC: string,
+  LONG_FUNC: string,
+  HR_ENT: string,
+  HR_SAI: string,
+  VT_INFORMADO: string,
+  VT_ROT: string,
+  COD_LOCAL: string,
+  CEP_LOCAL: string,
+  LOGRADOURO_LOCAL: string,
+  NUM_LOCAL: string,
+  DESCR_LOCAL: string,
+  LAT_LOCAL: string,
+  LONG_LOCAL: string
+}

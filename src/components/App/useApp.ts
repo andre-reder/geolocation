@@ -71,6 +71,10 @@ export default function useApp() {
 				chunkSize: 5000,
 				chunk: (results, parser) => {
 					const data: Array<any> = results.data;
+					const isLastIndexEmptyCpf = !(data[data.length - 1].CPF);
+					if (isLastIndexEmptyCpf) {
+						data.pop();
+					}
 
 					const hasDesiredHeadersAndValues = hasDesiredKeysAndValues(data, desiredHeaders);
 					if (!hasDesiredHeadersAndValues) {

@@ -99,7 +99,7 @@ export default function useApp() {
 
 				const getCoordsByAddress = async () => {
 					try {
-						const apiResponse = await fetch('http://geolocation_homolog.captamobilidade.com.br/processCoords', {
+						const apiResponse = await fetch('https://geolocation_homolog.captamobilidade.com.br/processCoords', {
 							method: 'POST',
 							headers: {
 								'content-type': 'application/json',

@@ -15,7 +15,6 @@ import { AppContainer, Container, PageContainer, ThemeRadioButtonsContainer } fr
 import Header from './components/Header';
 import useApp from './useApp';
 import NoData from '../NoData';
-import Filters from './components/Filters';
 import OpacityAnimation from '../OpacityAnimation';
 import DisplayMap from './components/DisplayMap';
 
@@ -26,18 +25,11 @@ export default function App() {
 		dataFromCsv,
 		downloadCsvModel,
 		handleFileUpload,
-		workplacesOptions,
-		filteredData,
-		selectedWorkplace,
-		selectedEmployee,
-		employeesOptions,
-		handleSelectedWorkplaceChange,
-		handleSelectedEmployeeChange,
+		isLoading,
+		downloadDataAsKml,
 	} = useApp();
 
 	const hasData = dataFromCsv.length > 0;
-	const isSomeWorkplaceSelected = !!(selectedWorkplace.value);
-
 	return (
 		<ThemeProvider theme={theme}>
 			<GlobalStyles />
@@ -61,39 +53,12 @@ export default function App() {
 								</ThemeRadioButton>
 							</ThemeRadioButtonsContainer>
 						</div>
-						<Header hasData={hasData} onImportCsv={handleFileUpload} downloadCsvModel={downloadCsvModel} />
+						<Header hasData={hasData} onImportCsv={handleFileUpload} downloadCsvModel={downloadCsvModel} downloadKml={downloadDataAsKml} isLoading={isLoading} />
 
 						{hasData && (
-							<Filters
-								workplacesOptions={workplacesOptions}
-								selectedWorkplace={selectedWorkplace}
-								selectedEmployee={selectedEmployee}
-								employeesOptions={employeesOptions}
-								handleSelectedWorkplaceChange={handleSelectedWorkplaceChange}
-								handleSelectedEmployeeChange={handleSelectedEmployeeChange}
-								isSomeWorkplaceSelected={isSomeWorkplaceSelected}
-							/>
-						)}
-
-						{hasData && isSomeWorkplaceSelected && (
 							<DisplayMap
-								data={filteredData}
-								selectedEmployee={selectedEmployee}
-								selectedWorkplace={selectedWorkplace}
+								data={dataFromCsv}
 							/>
-						)}
-
-						{hasData && !isSomeWorkplaceSelected && (
-							<OpacityAnimation delay={0.1}>
-								<NoData
-									icon="workplaceInterrogation"
-									label={(
-										<>
-                      Selecione um local de trabalho acima para visualizar seu mapa de tendência
-										</>
-									)}
-								/>
-							</OpacityAnimation>
 						)}
 
 						{!hasData && (
@@ -102,7 +67,7 @@ export default function App() {
 									icon="emptyBox"
 									label={(
 										<>
-                      Não há nenhum CSV importado para exibição do mapa. Clique no botão
+                      Não há nenhum CSV importado para exibição de seu mapa. Clique no botão
 											{' '}
 											<strong>Importar CSV</strong>
 											{' '}

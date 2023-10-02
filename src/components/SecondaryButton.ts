@@ -13,4 +13,9 @@ export const SecondaryButton = styled.button`
     background: ${({ theme }) => theme.colors.primary.main};
     color: ${({ theme }) => theme.colors.lighterBackground};
   }
+
+  &[disabled] {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
 `;

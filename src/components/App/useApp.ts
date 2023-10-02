@@ -1,62 +1,25 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ChangeEvent, useState } from 'react';
+import { ChangeEvent, useCallback, useState } from 'react';
 import Papa from 'papaparse';
 import hasDesiredKeysAndValues from '../../utils/hasDesiredKeysAndValues';
 import { toast } from 'react-toastify';
-import isValidCoordFromCsv from '../../utils/isValidCoordFromCsv';
-import { DataFromCsvMappedType, WorkplaceType } from './types';
+import { DataAfterCoordsProcessed, DataFromCsvMappedType } from './types';
 import hasDuplicates from '../../utils/hasDuplicatedValueAtArray';
-import removeDuplicates from '../../utils/removeDuplicates';
-import extractNumbers from '../../utils/extractNumbers';
 
 interface CustomParseResult<T> extends Papa.ParseResult<T> {
   data: T[];
 }
 
 export default function useApp() {
-	const [dataFromCsv, setDataFromCsv] = useState<DataFromCsvMappedType[]>([]);
-	const [filteredData, setFilteredData] = useState<DataFromCsvMappedType[]>([]);
-	const [selectedWorkplace, setSelectedWorkplace] = useState<WorkplaceType>({ value: '', label: 'Selecione um local de trabalho'} as WorkplaceType);
-	const [selectedEmployee, setSelectedEmployee] = useState<{ value: string, label: string }>({ value: '', label: 'Selecione um funcionário'} as { value: string, label: string });
-	const [workplacesOptions, setWorkplacesOptions] = useState<WorkplaceType[]>([{
-		value: '',
-		label: 'Selecione um local de trabalho',
-		lat: '',
-		lng: '',
-		cep: '',
-		streetName: '',
-		number: '',
-	}]);
-	const [employeesOptions, setEmployeesOptions] = useState([{
-		value: '', label: 'Selecione um funcionário'
-	}]);
+	const [isLoading, setIsLoading] = useState(false);
+	const [dataFromCsv, setDataFromCsv] = useState<DataAfterCoordsProcessed[]>([]);
 
-	const desiredHeaders = ['CEP_FUNC', 'CEP_LOCAL', 'COD_CONSULTA', 'COD_LOCAL', 'CPF', 'DESCR_LOCAL', 'HR_ENT', 'HR_SAI', 'LAT_FUNC', 'LAT_LOCAL', 'LOGRADOURO_FUNC', 'LOGRADOURO_LOCAL', 'LONG_FUNC', 'LONG_LOCAL', 'NOME', 'NUM_FUNC', 'NUM_LOCAL', 'VT_INFORMADO', 'VT_ROT'];
-
-	function handleSelectedWorkplaceChange(workplace: WorkplaceType) {
-		setSelectedWorkplace(workplace);
-		setSelectedEmployee({ value: '', label: 'Selecione um funcionário' });
-		const employeesAtWorkplace = dataFromCsv.filter((employee) =>(
-			employee.workplaceCode === workplace.value
-		));
-		const mappedEmployeesOptions = employeesAtWorkplace.map((employee) => (
-			{
-				value: employee.cpf,
-				label: `${employee.consultCode} - ${employee.name}`,
-			}
-		));
-		setEmployeesOptions(mappedEmployeesOptions);
-		setFilteredData(employeesAtWorkplace);
-	}
-
-	function handleSelectedEmployeeChange(employee: { value: string, label: string }) {
-		setSelectedEmployee(employee);
-	}
+	const desiredHeaders = ['NOME', 'LOGRADOURO', 'NUMERO', 'BAIRRO', 'CIDADE', 'UF', 'CEP', 'CPF'];
 
 	function downloadCsvModel() {
 		const link = document.createElement('a');
-		link.href = '/files/Modelo importar dados mapa tendencia.csv';
-		link.download = 'Modelo importar dados mapa tendencia';
+		link.href = '/files/Modelo importar geolocalizacao.csv';
+		link.download = 'Modelo importar geolocalizacao';
 		document.body.appendChild(link);
 		link.click();
 		document.body.removeChild(link);
@@ -83,52 +46,25 @@ export default function useApp() {
 						return;
 					}
 
-					const allCoords = [];
-					for (let i = 0; i < data.length; i++) {
-						const obj = data[i];
-						allCoords.push(obj['LAT_FUNC']);
-						allCoords.push(obj['LONG_FUNC']);
-						allCoords.push(obj['LAT_LOCAL']);
-						allCoords.push(obj['LONG_LOCAL']);
-					}
-					const areAllCoordsValid = allCoords.every((coord) => isValidCoordFromCsv(coord));
-					if (!areAllCoordsValid) {
-						reject(new Error('Identificamos que existe alguma coordenada em um formato diferente do modelo'));
-						parser.abort();
-						return;
-					}
-
 					const mappedArray = data.map((index) => ({
-						cpf: index.CPF,
-						consultCode: index.COD_CONSULTA,
 						name: index.NOME,
-						employeeStreetName: index.LOGRADOURO_FUNC,
-						employeeNumber: index.NUM_FUNC,
-						employeeCep: index.CEP_FUNC,
-						employeeLat: index.LAT_FUNC.replaceAll('_', '.'),
-						employeeLng: index.LONG_FUNC.replaceAll('_', '.'),
-						entryTime: index.HR_ENT,
-						exitTime: index.HR_SAI,
-						oldValue: extractNumbers(index.VT_INFORMADO.replaceAll(',', '.')),
-						newValue: extractNumbers(index.VT_ROT.replaceAll(',', '.')),
-						workplaceCode: index.COD_LOCAL,
-						workplaceCep: index.CEP_LOCAL,
-						workplaceStreetName: index.LOGRADOURO_LOCAL,
-						workplaceNumber: index.NUM_LOCAL,
-						workplaceName: index.DESCR_LOCAL,
-						workplaceLat: index.LAT_LOCAL.replaceAll('_', '.'),
-						workplaceLng: index.LONG_LOCAL.replaceAll('_', '.'),
+						streetName: index.LOGRADOURO,
+						district: index.BAIRRO,
+						city: index.CIDADE,
+						uf: index.UF,
+						number: index.NUMERO,
+						cep: index.CEP,
 					}));
 					parsedData.push(...mappedArray);
 				},
 				complete: () => {
-					const onlyCpfs = [];
+					const onlyNames = [];
 					for (let i = 0; i < parsedData.length; i++) {
 						const index = parsedData[i];
-						onlyCpfs.push(index.cpf);
+						onlyNames.push(index.name);
 					}
-					if (hasDuplicates(onlyCpfs)) {
-						reject(new Error('Identificamos uma ou mais duplicidades de CPF no arquivo') );
+					if (hasDuplicates(onlyNames)) {
+						reject(new Error('Identificamos uma ou mais duplicidades de nome no arquivo') );
 						return;
 					}
 					const customResult: CustomParseResult<any> = {
@@ -153,45 +89,158 @@ export default function useApp() {
 		const { files } = e.target;
 		if (files) {
 			try {
+				setIsLoading(true);
 				const results = await toast.promise(parseFile(files[0]), {
 					pending: 'Aguarde, estamos carregando este arquivo',
-					success: 'Seu arquivo está válido. Agora basta visualizar seu mapa da forma que desejar!',
+					success: 'Seu arquivo está válido. Agora basta aguardar seu processamento!',
 					error: 'Ocorreu um erro ao carregar seu arquivo',
 				});
 				const resultArray: DataFromCsvMappedType[] = results.data;
 
-				const mappedWorkplaces = [];
-				for (let i = 0; i < resultArray.length; i++) {
-					const index = resultArray[i];
-					mappedWorkplaces.push({
-						value: index.workplaceCode,
-						label: index.workplaceName,
-						lat: index.workplaceLat,
-						lng: index.workplaceLng,
-						cep: index.workplaceCep,
-						streetName: index.workplaceStreetName,
-						number: index.workplaceNumber,
-					});
-				}
-				setWorkplacesOptions(removeDuplicates(mappedWorkplaces));
-				setDataFromCsv(resultArray);
+				const getCoordsByAddress = async () => {
+					try {
+						const apiResponse = await fetch('https://geolocation.captamobilidade.com.br/processCoords', {
+							method: 'POST',
+							headers: {
+								'content-type': 'application/json',
+							},
+							body: JSON.stringify(resultArray)
+						});
+
+						const response = await apiResponse.json();
+						if (response.status === 500) {
+							throw new Error(response.response?.message ?? 'erro');
+						}
+						setDataFromCsv(response);
+					} catch (error) {
+						toast.error(`Não foi possível carregar seu arquivo (${error})`);
+					}
+				};
+
+				await toast.promise(getCoordsByAddress(), {
+					pending: 'Aguarde, estamos carregando este arquivo',
+					success: 'Seu arquivo foi carregado. Agora basta visualizar seu mapa da forma que desejar, e baixá-lo!',
+					error: 'Ocorreu um erro ao carregar seu arquivo',
+				});
+				setIsLoading(false);
 			} catch (error) {
+				setIsLoading(false);
 				toast.error(`Não foi possível processar este arquivo (${error})`);
 				setDataFromCsv([]);
 			}
 		}
 	}
 
+	const downloadDataAsKml = useCallback(() => {
+		const kmlAsString = `<?xml version="1.0" encoding="UTF-8"?>
+<kml xmlns="http://www.opengis.net/kml/2.2" xmlns:gx="http://www.google.com/kml/ext/2.2" xmlns:kml="http://www.opengis.net/kml/2.2" xmlns:atom="http://www.w3.org/2005/Atom">
+<Document>
+	<name>KML - Geolocalização (bonecos)</name>
+	<Snippet maxLines="0"></Snippet>
+	<description><![CDATA[<style type='text/css'>*{font-family:Verdana,Arial,Helvetica,Sans-Serif;}</style><table style="width: 300px;"><tr><td style="vertical-align: top;">Source</td><td style="width: 100%;">06.00 as 14.20.xlsx</td></tr><tr><td>DateTime</td><td>2023-06-29 13:33:01 UTC <br/></td></tr><tr><td colspan="2" style="vertical-align: top;"><br/>Created with <a target='_blank' href='https://www.earthpoint.us/ExcelToKml.aspx'>Earth Point Excel To KML</a><br/>&copy;2023 Earth Point<br/><br/>For illustration only.&nbsp; User to verify all information. </td></tr></table>]]></description>
+	<Style>
+		<IconStyle>
+			<Icon>
+			</Icon>
+		</IconStyle>
+		<BalloonStyle>
+			<text>$[description]</text>
+			<textColor>ff000000</textColor>
+			<displayMode>default</displayMode>
+		</BalloonStyle>
+	</Style>
+	<gx:balloonVisibility>1</gx:balloonVisibility>
+	<StyleMap id="0_0">
+		<Pair>
+			<key>normal</key>
+			<styleUrl>#Normal0_0</styleUrl>
+		</Pair>
+		<Pair>
+			<key>highlight</key>
+			<styleUrl>#Highlight0_0</styleUrl>
+		</Pair>
+	</StyleMap>
+	<Style id="Highlight0_0">
+		<IconStyle>
+			<color>ffffff00</color>
+			<Icon>
+				<href>http://www.earthpoint.us/Dots/GoogleEarth/WhiteShapes/man.png</href>
+			</Icon>
+		</IconStyle>
+		<BalloonStyle>
+			<text>$[description]</text>
+		</BalloonStyle>
+		<LineStyle>
+			<width>3</width>
+		</LineStyle>
+	</Style>
+	<Style id="Normal0_0">
+		<IconStyle>
+			<color>ffffff00</color>
+			<scale>0.9</scale>
+			<Icon>
+				<href>http://www.earthpoint.us/Dots/GoogleEarth/WhiteShapes/man.png</href>
+			</Icon>
+		</IconStyle>
+		<BalloonStyle>
+			<text>$[description]</text>
+		</BalloonStyle>
+		<LineStyle>
+			<width>2</width>
+		</LineStyle>
+	</Style>
+  <Folder>
+  <name>Plan1</name>
+  ${dataFromCsv.map((data) => `
+  <Placemark>
+  <name>&lt;b/&gt;</name>
+  <Snippet maxLines="0"></Snippet>
+  <description>${data.name}</description>
+  <LookAt>
+    <longitude>${data.lng}</longitude>
+    <latitude>${data.lat}</latitude>
+    <altitude>0</altitude>
+    <heading>0</heading>
+    <tilt>0</tilt>
+    <range>1000</range>
+    <altitudeMode>relativeToGround</altitudeMode>
+  </LookAt>
+  <styleUrl>#0_0</styleUrl>
+  <Style>
+    <LabelStyle>
+      <color>00000000</color>
+    </LabelStyle>
+  </Style>
+  <ExtendedData>
+  </ExtendedData>
+  <Point>
+    <coordinates>${data.lng},${data.lat},0</coordinates>
+  </Point>
+  </Placemark>
+  `).join('')}</Folder></Document></kml>`;
+
+		const blob = new Blob([kmlAsString], { type: 'application/vnd.google-earth.kml+xml' });
+
+		const blobUrl = URL.createObjectURL(blob);
+
+		const a = document.createElement('a');
+		a.style.display = 'none';
+		a.href = blobUrl;
+		a.download = 'KML geolocalizacao (bonecos).kml';
+
+		document.body.appendChild(a);
+		a.click();
+
+		document.body.removeChild(a);
+
+		URL.revokeObjectURL(blobUrl);
+	}, [dataFromCsv]);
+
 	return {
 		dataFromCsv,
 		downloadCsvModel,
 		handleFileUpload,
-		workplacesOptions,
-		filteredData,
-		selectedWorkplace,
-		selectedEmployee,
-		employeesOptions,
-		handleSelectedWorkplaceChange,
-		handleSelectedEmployeeChange,
+		isLoading,
+		downloadDataAsKml,
 	};
 }

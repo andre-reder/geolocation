@@ -1,45 +1,26 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useLayoutEffect, useRef } from 'react';
-import company from '../../../../assets/images/icons/company.svg';
 import employeeIcon from '../../../../assets/images/icons/employee.svg';
-import greenEmployeeIcon from '../../../../assets/images/icons/greenEmployeeIcon.svg';
-import blueEmployeeIcon from '../../../../assets/images/icons/blueEmployeeIcon.svg';
-import formatCurrency from '../../../../utils/formatCurrency';
 import OpacityAnimation from '../../../OpacityAnimation';
-import { DataFromCsvMappedType, WorkplaceType } from '../../types';
+import { DataAfterCoordsProcessed } from '../../types';
 
 interface DisplayMapInterface {
-  data: DataFromCsvMappedType[];
-  selectedWorkplace: WorkplaceType;
-  selectedEmployee: { value: string, label: string };
+  data: DataAfterCoordsProcessed[];
 }
 
 type CoordType = { lat: string, lng: string };
 
-export default function DisplayMap({ data, selectedWorkplace, selectedEmployee }: DisplayMapInterface) {
+export default function DisplayMap({ data }: DisplayMapInterface) {
 	const mapRef = useRef(null);
 
 	useLayoutEffect(() => {
 		const employees = data.map((i) => (
 			{
-				lat: i.employeeLat,
-				lng: i.employeeLng,
+				lat: i.lat,
+				lng: i.lng,
 				name: i.name,
-				cpf: i.cpf,
-				consultCode: i.consultCode,
-				oldValue: i.oldValue,
-				newValue: i.newValue,
-				savedValue: Number(i.oldValue) - Number(i.newValue),
-				optimized: Number(i.newValue) < Number(i.oldValue),
-				streetName: i.employeeStreetName,
-				number: i.employeeNumber,
-				cep: i.employeeCep,
-				entryTime: i.entryTime,
-				exitTime: i.exitTime,
 			}
 		));
-		const selectedEmployeeData = employees.find((employee) => employee.cpf === selectedEmployee.value);
-		const ltCoords = { lat: selectedWorkplace.lat, lng: selectedWorkplace.lng };
 
 		if (!mapRef.current) return undefined;
 		const { H } = window;
@@ -52,9 +33,7 @@ export default function DisplayMap({ data, selectedWorkplace, selectedEmployee }
 			mapRef.current,
 			defaultLayers.vector.normal.map,
 			{
-				center: selectedEmployee.value
-					? { lat: selectedEmployeeData?.lat, lng: selectedEmployeeData?.lng }
-					: ltCoords,
+				center: { lat: employees[0]?.lat ?? 0, lng: employees[0]?.lng ?? 0 },
 				zoom: 10.5,
 				pixelRatio: window.devicePixelRatio || 1,
 			},
@@ -64,72 +43,13 @@ export default function DisplayMap({ data, selectedWorkplace, selectedEmployee }
 		const ui = H.ui.UI.createDefault(mapInstance, defaultLayers);
 
 		function addMarkersToMap(map: any) {
-			const ltIcon = new H.map.Icon(company, {
-				size: {
-					h: 32,
-					w: 32
-				}
-			});
-			const ltMarker = new H.map.Marker(ltCoords, { icon: ltIcon });
-			function addMarkerToGroup(group: any, coordinate: CoordType, html: string) {
-				const marker = new H.map.Marker(coordinate, { icon: ltIcon });
-				// add custom data to the marker
-				marker.setData(html);
-				group.addObject(marker);
-			}
-			function addInfoBubble(mp: any) {
-				const group = new H.map.Group();
-				mp.addObject(group);
-
-				// add 'tap' event listener, that opens info bubble, to the group
-				group.addEventListener('tap', (evt: any) => {
-					// event target is the marker itself, group is a parent event target
-					// for all objects that it contains
-					const bubble = new H.ui.InfoBubble(evt.target.getGeometry(), {
-						// read custom data
-						content: evt.target.getData(),
-					});
-					// show info bubble
-					ui.addBubble(bubble);
-				}, false);
-
-				addMarkerToGroup(
-					group,
-					ltCoords,
-					`<div style="
-              min-inline-size: max-content;
-          ">
-            ${selectedWorkplace.label}
-            <br>
-            Código: ${selectedWorkplace.value}
-            <br>
-            Endereço: ${selectedWorkplace.streetName}, ${selectedWorkplace.number} - ${selectedWorkplace.cep}
-          </div>`,
-				);
-			}
-			map.addObject(ltMarker);
-			addInfoBubble(map);
-
 			employees.forEach((employee) => {
-				const optimizedEmployeeIcon = new H.map.Icon(greenEmployeeIcon);
-				const notOptimizedEmployeeIcon = new H.map.Icon(employeeIcon);
-				const selectedEmployeeIcon = new H.map.Icon(blueEmployeeIcon, {
-					size: {
-						h: 32,
-						w: 32
-					}
-				});
+				const employeeIconHere = new H.map.Icon(employeeIcon);
 				const employeeCoord = { lat: employee.lat, lng: employee.lng };
-
-				const choosedIcon = (
-					employee.cpf === selectedEmployee.value
-						? selectedEmployeeIcon
-						: (employee.optimized ? optimizedEmployeeIcon : notOptimizedEmployeeIcon)
-				);
-				const employeeMarker = new H.map.Marker(employeeCoord, { icon: choosedIcon });
+				const employeeMarker = new H.map.Marker(employeeCoord, { icon: employeeIconHere });
 
 				function addMarkerToGroup(group: any, coordinate: CoordType, html: string) {
-					const marker = new H.map.Marker(coordinate, { icon: choosedIcon });
+					const marker = new H.map.Marker(coordinate, { icon: employeeIconHere });
 					// add custom data to the marker
 					marker.setData(html);
 					group.addObject(marker);
@@ -158,22 +78,6 @@ export default function DisplayMap({ data, selectedWorkplace, selectedEmployee }
                 min-inline-size: max-content;
             ">
               ${employee.name}
-              <br>
-              CPF: ${employee.cpf}
-              <br>
-              Consulta: ${employee.consultCode}
-              <br>
-              VT Informado: ${formatCurrency(Number(employee.oldValue))}
-              <br>
-              VT Roteirizado: ${formatCurrency(Number(employee.newValue))}
-              <br>
-              Status: ${employee.optimized ? 'Otimizado' : 'Não otimizado'}
-              <br>
-              Economia: ${formatCurrency(Number(employee.savedValue))}
-              <br>
-              Horário: ${employee.entryTime} - ${employee.exitTime}
-              <br>
-              Endereço: ${employee.streetName}, ${employee.number} - ${employee.cep}
             </div>`,
 					);
 				}
@@ -187,7 +91,7 @@ export default function DisplayMap({ data, selectedWorkplace, selectedEmployee }
 		return () => {
 			mapInstance.dispose();
 		};
-	}, [data, mapRef, selectedEmployee, selectedWorkplace]);
+	}, [data, mapRef]);
 
 	return (
 		<OpacityAnimation delay={0.1}>

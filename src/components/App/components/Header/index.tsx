@@ -8,12 +8,16 @@ interface HeaderInterface {
   onImportCsv: (event: ChangeEvent<HTMLInputElement>) => void;
   hasData: boolean;
   downloadCsvModel: () => void;
+  downloadKml: () => void;
+  isLoading: boolean;
 }
 
 export default function Header({
 	onImportCsv,
 	hasData,
 	downloadCsvModel,
+	downloadKml,
+	isLoading,
 }: HeaderInterface) {
 	const hiddenFileInput = useRef<HTMLInputElement>();
 	const handleClick = () => {
@@ -24,14 +28,19 @@ export default function Header({
 			<LogoContainer>
 				<img src={logo} alt="Logo" />
 			</LogoContainer>
-			<Title>Mapa de tendência</Title>
+			<Title>Geolocalização</Title>
 			<ButtonsContainer>
 				<SecondaryButton onClick={downloadCsvModel}>
           Modelo CSV
 				</SecondaryButton>
-				<SecondaryButton onClick={handleClick}>
+				<SecondaryButton onClick={handleClick} disabled={isLoading}>
 					{hasData ? 'Alterar CSV' : 'Importar CSV'}
 				</SecondaryButton>
+				{hasData && (
+					<SecondaryButton onClick={downloadKml} disabled={isLoading}>
+						Baixar KML
+					</SecondaryButton>
+				)}
 			</ButtonsContainer>
 
 			<input

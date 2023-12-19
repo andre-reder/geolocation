@@ -99,7 +99,7 @@ export default function useApp() {
 
 				const getCoordsByAddress = async () => {
 					try {
-						const apiResponse = await fetch('https://geolocation.captamobilidade.com.br/processCoords', {
+						const apiResponse = await fetch('http://geolocation.captamobilidade.com.br/processCoords', {
 							method: 'POST',
 							headers: {
 								'content-type': 'application/json',
@@ -108,7 +108,7 @@ export default function useApp() {
 						});
 
 						const response = await apiResponse.json();
-						if (response.status !== 201) {
+						if (apiResponse.status !== 201) {
 							throw new Error(response.response?.message ?? 'erro');
 						}
 						setDataFromCsv(response);

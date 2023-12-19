@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { ChangeEvent, useCallback, useState } from 'react';
 import Papa from 'papaparse';
-import hasDesiredKeysAndValues from '../../utils/hasDesiredKeysAndValues';
+import { ChangeEvent, useCallback, useState } from 'react';
 import { toast } from 'react-toastify';
-import { DataAfterCoordsProcessed, DataFromCsvMappedType } from './types';
+import hasDesiredKeysAndValues from '../../utils/hasDesiredKeysAndValues';
 import hasDuplicates from '../../utils/hasDuplicatedValueAtArray';
+import { DataAfterCoordsProcessed, DataFromCsvMappedType } from './types';
 
 interface CustomParseResult<T> extends Papa.ParseResult<T> {
   data: T[];
@@ -108,7 +108,7 @@ export default function useApp() {
 						});
 
 						const response = await apiResponse.json();
-						if (response.status === 500) {
+						if (response.status !== 201) {
 							throw new Error(response.response?.message ?? 'erro');
 						}
 						setDataFromCsv(response);

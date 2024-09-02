@@ -111,7 +111,7 @@ export default function useApp() {
 						if (!response.success) {
 							throw new Error(response.response?.message ?? response.message ?? 'erro não identificado');
 						}
-						setDataFromCsv(response);
+						setDataFromCsv(response.processedCoords);
 					} catch (error) {
 						toast.error(`Não foi possível carregar seu arquivo (${error})`, { autoClose: false });
 					}

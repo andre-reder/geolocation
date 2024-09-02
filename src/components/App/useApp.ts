@@ -108,12 +108,12 @@ export default function useApp() {
 						});
 
 						const response = await apiResponse.json();
-						if (apiResponse.status !== 201) {
-							throw new Error(response.response?.message ?? 'erro');
+						if (!response.success) {
+							throw new Error(response.response?.message ?? response.message ?? 'erro não identificado');
 						}
 						setDataFromCsv(response);
 					} catch (error) {
-						toast.error(`Não foi possível carregar seu arquivo (${error})`);
+						toast.error(`Não foi possível carregar seu arquivo (${error})`, { autoClose: false });
 					}
 				};
 
